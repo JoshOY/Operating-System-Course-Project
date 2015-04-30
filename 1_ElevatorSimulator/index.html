@@ -4,229 +4,28 @@
     <meta charset="utf-8">
     <meta lang="zh-cn">
     <title>OS Project Elevator</title>
+
     <link href="stylesheet/elevator.css" rel="stylesheet" type="text/css">
+
+    <link href="stylesheet/mui.min.css" rel="stylesheet" type="text/css" />
+    <script src="javascript/mui.min.js"></script>
+
     <script src="javascript/jquery-2.1.1.min.js" type="text/javascript"></script>
     <script src="javascript/jquery-ui-1.11.4/jquery-ui.min.js" type="text/javascript"></script>
     <script src="javascript/elevator.js" type="text/javascript"></script>
-    <script>
 
-var ELEVATOR_TOTAL = 5;
-var FLOOR_TOTAL = 8;
-var ELEVATOR_WAITING = 'WAITING';
-var ELEVATOR_MOVING_UP = 'MOVING_UP';
-var ELEVATOR_MOVING_DOWN = 'MOVING_DOWN';
-var ELEVATOR_DOOR_OPEN = 'DOOR_OPENING';  // The door is open but has its schedule.
-
-var elevatorFloor = [];
-var doorIsOpen = [];
-var elevatorSchedule = [];
-var elevatorStatus = [];
-var taskIntervalId = [];
-
-var floorHeight = (100 / FLOOR_TOTAL);
-var elevatorWidth = 128;
-var elevatorOpenMarginWidth = 0;
-var elevatorOpenWidth = 61.5;
-var holdTime = 2000; // 2000 means 2s
-
-
-var init = function() {
-    for (var i = 0; i < ELEVATOR_TOTAL; ++i) {
-        elevatorFloor.push(1);
-        doorIsOpen.push([]);
-        elevatorSchedule.push([]);
-        elevatorStatus.push(ELEVATOR_WAITING);
-        taskIntervalId.push(-1);
-
-        var appendStr = "<div id=\"elevator-" + i + "\" class=\"elevator-div\">";
-        var appendFloorStr = "";
-        for (var j = 0; j < FLOOR_TOTAL; ++j) {
-            appendFloorStr += "<span class=\"floor\" style=\"height: "
-            + floorHeight + "%\">";
-
-            var elevatorDisplay = "<span class=\"elevator-status-display\"" + ' id="light_' + i + '_' + (FLOOR_TOTAL - j)
-                    + '">' + (FLOOR_TOTAL - j).toString() + "</span>";
-            var doorDisplayLeft = "<span class=\"door-left\" id=\"door_l_" + i + '_' + (FLOOR_TOTAL - j) + "\"></span>";
-            var doorDisplayRight = "<span class=\"door-right\" id=\"door_r_" + i + '_' + (FLOOR_TOTAL - j) + "\"></span>";
-
-            appendFloorStr += elevatorDisplay + doorDisplayLeft + doorDisplayRight + "</span>";
-            doorIsOpen[i].push(false);
-        }
-        appendStr += appendFloorStr;
-        appendStr += "</div>";
-        $(".elevator-container").append(appendStr);
-    }
-};
-
-// animation functions
-
-var animationDoorLeftOpen = function(elevatorIndex, floorIndex){
-    var door = $("#door_l_" + elevatorIndex + '_' + floorIndex);
-    console.log("Animation activated!");
-    door.animate({
-        'margin-left': elevatorOpenMarginWidth.toString() + 'px',
-        'width': elevatorOpenWidth.toString() + 'px'
-    }, holdTime);
-};
-
-var animationDoorRightOpen = function(elevatorIndex, floorIndex){
-    var door = $("#door_r_" + elevatorIndex + '_' + floorIndex);
-    console.log("Animation activated!");
-    door.animate({
-        'margin-right': elevatorOpenMarginWidth.toString() + 'px',
-        'width': elevatorOpenWidth.toString() + 'px'
-    }, holdTime);
-};
-
-var animationDoorLeftClose = function(elevatorIndex, floorIndex){
-    var door = $("#door_l_" + elevatorIndex + '_' + floorIndex);
-    console.log("Animation activated!");
-    door.animate({
-        'margin-left': (elevatorOpenWidth).toString() + 'px',
-        'width': (elevatorOpenMarginWidth).toString() + 'px'
-    }, holdTime);
-};
-
-var animationDoorRightClose = function(elevatorIndex, floorIndex){
-    var door = $("#door_r_" + elevatorIndex + '_' + floorIndex);
-    console.log("Animation activated!");
-    door.animate({
-        'margin-right': elevatorOpenWidth.toString() + 'px',
-        'width': elevatorOpenMarginWidth.toString() + 'px'
-    }, holdTime);
-};
-
-var doorOpen = function(i, j) {
-    animationDoorLeftOpen(i, j);
-    animationDoorRightOpen(i, j);
-    doorIsOpen[i][j] = true;
-};
-
-var doorClose = function(i, j) {
-    animationDoorLeftClose(i, j);
-    animationDoorRightClose(i, j);
-    doorIsOpen[i][j] = false;
-};
-
-var switchLightGreen = function(i, j) {
-    console.log(('#light_' + i + '_' + j));
-    var light = $('#light_' + i + '_' + j);
-    // console.log(light);
-    light.animate({
-        backgroundColor: 'rgba(0, 255, 0, 0.5)'
-    }, holdTime / 2);
-};
-
-
-var switchLightDark = function(i, j) {
-    console.log(('#light_' + i + '_' + j));
-    var light = $('#light_' + i + '_' + j);
-    // console.log(light);
-    light.animate({
-        backgroundColor: 'rgba(0, 255, 0, 0)'
-    }, holdTime / 2);
-};
-
-var elevatorMove = function(elevatorIndex) {
-    var currentFloor = elevatorFloor[elevatorIndex];
-    if (elevatorSchedule[elevatorIndex].length === 0) {
-        console.log("Schedule is empty.");
-        clearInterval(taskIntervalId[elevatorIndex]);
-        taskIntervalId[elevatorIndex] = -1;
-        elevatorStatus[elevatorIndex] = ELEVATOR_WAITING;
-        return true;
-    }
-    var moveToFloor = elevatorSchedule[elevatorIndex][0];
-
-    console.log('Elevator #' + elevatorIndex + ' will move to floor ' + moveToFloor + '.');
-
-    if (currentFloor === moveToFloor) {
-        doorOpen(elevatorIndex, currentFloor);
-        elevatorStatus[elevatorIndex] = ELEVATOR_DOOR_OPEN;
-        elevatorSchedule[elevatorIndex].shift();
-
-        if (elevatorSchedule[elevatorIndex].length === 0) {
-            clearInterval(taskIntervalId[elevatorIndex]);
-            taskIntervalId[elevatorIndex] = -1;
-            elevatorStatus[elevatorIndex] = ELEVATOR_WAITING;
-        }
-
-        return true;
-    }
-
-    switch(elevatorStatus[elevatorIndex]) {
-        case ELEVATOR_WAITING:
-        case ELEVATOR_DOOR_OPEN:
-            doorClose(elevatorIndex, currentFloor);
-            if (moveToFloor > currentFloor) {
-                elevatorStatus[elevatorIndex] = ELEVATOR_MOVING_UP;
-            } else {
-                elevatorStatus[elevatorIndex] = ELEVATOR_MOVING_DOWN;
-            }
-            break;
-        case ELEVATOR_MOVING_UP:
-            switchLightDark(elevatorIndex, currentFloor);
-            elevatorFloor[elevatorIndex] += 1;
-            switchLightGreen(elevatorIndex, elevatorFloor[elevatorIndex]);
-            if (moveToFloor > currentFloor) {
-                elevatorStatus[elevatorIndex] = ELEVATOR_MOVING_UP;
-            } else {
-                elevatorStatus[elevatorIndex] = ELEVATOR_MOVING_DOWN;
-            }
-            break;
-        case ELEVATOR_MOVING_DOWN:
-            switchLightDark(elevatorIndex, currentFloor);
-            elevatorFloor[elevatorIndex] -= 1;
-            switchLightGreen(elevatorIndex, elevatorFloor[elevatorIndex]);
-            if (moveToFloor > currentFloor) {
-                elevatorStatus[elevatorIndex] = ELEVATOR_MOVING_UP;
-            } else {
-                elevatorStatus[elevatorIndex] = ELEVATOR_MOVING_DOWN;
-            }
-            break;
-    }
-
-};
-
-var checkSchedule = function(elevatorIndex, floor) {
-    if (elevatorSchedule[elevatorIndex].length === 0) {
-        return false;
-    }
-    // We only check the first element on the queue.
-    else if (floor === elevatorSchedule[elevatorIndex][0]) {
-        elevatorSchedule[elevatorIndex].shift();
-        return true;
-    }
-    return false;
-};
-
-// Process Algorithms
-var S = function(floorCall) {
-    for (var i = 0; i < ELEVATOR_TOTAL; ++i) {
-        if (elevatorStatus[i] === ELEVATOR_WAITING) {
-            elevatorSchedule[i].push(floorCall);
-            elevatorMove(i);
-            taskIntervalId[i] = setInterval(function(){
-                elevatorMove(i);
-            }, holdTime + 50);
-            console.log('taskIntervalId = ' + taskIntervalId[i] + ', using elevator#' + i + '.');
-            break;
-        }
-    }
-};
-
-$(document).ready(function() {
-    init();
-    for (var i = 0; i < ELEVATOR_TOTAL; ++i) {
-        doorOpen(i, 1);
-        switchLightGreen(i, 1);
-    }
-});
-    </script>
 </head>
 <body>
     <div class="control-panel-container">
-        <button></button>
+        <div class="mui-panel elevator-call-panel">
+            <h1>Floor Call Outside</h1><br />
+            <!--
+            <button class="mui-btn mui-btn-default mui-btn-raised">F2</button>
+            <br />
+            <button class="mui-btn mui-btn-default mui-btn-raised">F1</button>
+            -->
+        </div>
+
     </div>
     <div class="elevator-container"></div>
 </body>
