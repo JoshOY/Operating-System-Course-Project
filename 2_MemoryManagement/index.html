@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head lang="cn-zh">
+    <meta charset="UTF-8">
+    <title>OS项目之内存管理</title>
+    <script type="text/javascript" src="js/jquery-2.1.1.min.js"></script>
+
+    <link rel="stylesheet"  href="css/mui.min.css">
+    <script type="text/javascript" src="js/mui.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="css/memory.css">
+
+</head>
+<body>
+    <div class="main-container">
+        <div class="memory-div mui-z3"></div>
+        <div class="instruction-queue mui-z3"></div>
+
+
+        <div class="control-panel">
+            <button id="btn-push-next-ins" class="mui-btn mui-btn-default">Push next instruction</button>
+            <br />
+            <button id="btn-auto-push-next-ins" class="mui-btn mui-btn-default">Auto push</button>
+            <br />
+            <h3 style="color: white">Select Algorithm</h3>
+            <button id="btn-change-alg-FIFO" class="mui-btn mui-btn-primary">FIFO</button>
+            <br />
+            <button id="btn-change-alg-LRU" class="mui-btn mui-btn-default">LRU</button>
+            <br />
+            <button id="btn-change-alg-LFU" class="mui-btn mui-btn-default">LFU</button>
+        </div>
+
+        <div class="data-panel">
+            <h3>指令执行数： <span id="instruct-total"></span></h3>
+            <h3>缺页率： <span id="page-not-found-rate"></span></h3>
+        </div>
+
+    </div>
+</body>
+<script type="text/javascript" src="js/memory.js"></script>
+</html>
