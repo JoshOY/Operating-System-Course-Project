@@ -22,7 +22,7 @@
             <button id="btn-auto-push-next-ins" class="mui-btn mui-btn-default">Auto push</button>
             <br />
             <h3 style="color: white">Select Algorithm</h3>
-            <button id="btn-change-alg-FIFO" class="mui-btn mui-btn-primary">FIFO</button>
+            <button id="btn-change-alg-FIFO" class="mui-btn mui-btn-default mui-btn-primary">FIFO</button>
             <br />
             <button id="btn-change-alg-LRU" class="mui-btn mui-btn-default">LRU</button>
             <br />
@@ -32,6 +32,25 @@
         <div class="data-panel">
             <h3>指令执行数： <span id="instruct-total"></span></h3>
             <h3>缺页率： <span id="page-not-found-rate"></span></h3>
+        </div>
+
+        <div class="settings-panel">
+            <form action="javascript:void(0);">
+                <legend>参数设置</legend>
+                <div class="mui-form-group">
+                    <input type="text" pattern="[0-9]*" class="mui-form-control" id="input-memory-block-num">
+                    <label class="mui-form-floating-label">内存块数（默认为4）</label>
+                </div>
+                <div class="mui-form-group">
+                    <input type="text" pattern="[0-9]*" class="mui-form-control" id="input-instruction-per-page">
+                    <label class="mui-form-floating-label">页面大小（默认为10）</label>
+                </div>
+                <div class="mui-form-group">
+                    <input type="text" pattern="[0-9]*" class="mui-form-control" id="input-instruction-total">
+                    <label class="mui-form-floating-label">指令数目（默认为320）</label>
+                </div>
+                <button class="mui-btn mui-btn-default mui-btn-raised" id="btn-submit-change">确认修改</button>
+            </form>
         </div>
 
     </div>

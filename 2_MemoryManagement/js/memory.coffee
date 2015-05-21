@@ -26,12 +26,16 @@ global =
   needUpdateMemoryPages: yes
   # 从内存中被挤出去的页面
   popPage: null
+  # 内存中被使用的页面的索引
+  usingPageIndex: -1
   # 自动播放interval id
   autoplayIntervalId: -1
   # 总计指令读取
   insLoadTotal: 0
   # 缺页次数
   pageNotFoundTime: 0
+  # 当前执行的指令
+  currentIns: -1
 
 algCount =
   # 内存中某块页面距离上次访问已经过去的指令周期（LRU算法用）
@@ -93,7 +97,7 @@ initHTML = ->
 # 载入指令
 loadInstruction = ()->
   global.insLoadTotal += 1
-  global.popPage = insArr.shift()
+  global.currentIns = insArr.shift()
   pushInstruction()
 
 # 页面载入内存
@@ -123,15 +127,18 @@ getPageByAddress = (addr) ->
 update = ()->
   if global.needUpdateInstructionQueue then (
     $('.instruction-queue').empty()
-    $('.instruction-queue').append '<div class="instruction">' + insArr[index] + '</div>' for index in [0..9]
+    $('.instruction-queue').append '<div class="instruction hightlight-blue">' +
+      (if global.currentIns >= 0 then global.currentIns.toString() else ' ') + '</div>'
+    $('.instruction-queue').append '<div class="instruction">' +
+      insArr[index] + '</div>' for index in [0..9]
     global.needUpdateInstructionQueue = no
   );
   if global.needUpdateMemoryPages then (
     $('.memory-div').empty()
     (
       if memPage[index] isnt null then (
-        $('.memory-div').append('<div class="memory-block">' + 'Page #' + memPage[index] +
-        '<br />Address: ' + (memPage[index] * 10) + ' ~ ' + (memPage[index] * 10 + PAGE_STORE_MAX - 1) +
+        $('.memory-div').append('<div class="memory-block" id="mempage-' + index.toString() + '">' + 'Page #' + memPage[index] +
+        '<br />Address: ' + (memPage[index] * PAGE_STORE_MAX) + ' ~ ' + (memPage[index] * PAGE_STORE_MAX + PAGE_STORE_MAX - 1) +
         '<br />Last visit: ' + algCount.blockLastVisited[index] +
         '<br />Page visited: ' + algCount.pageVisitedTime[memPage[index]] +
         '</div>')
@@ -140,10 +147,15 @@ update = ()->
         $('.memory-div').append '<div class="memory-block">idle block</div>'
     ) for index in [0..MEMORY_BLOCK_MAX - 1]
     $('.memory-block').css('height', (450 / MEMORY_BLOCK_MAX) + 'px')
+
+    if global.usingPageIndex isnt -1 then (
+      $('#mempage-' + global.usingPageIndex).addClass('hightlight-blue')
+    )
+
     global.needUpdateMemoryPages = no
   )
   if global.insLoadTotal is 0 then (
-    $('#instruct-total').text = '0'
+    $('#instruct-total').text '0'
     $('#page-not-found-rate').text '0%'
   ) else (
     $('#instruct-total').text global.insLoadTotal.toString()
@@ -157,6 +169,7 @@ update = ()->
 # push Instruction 按钮触发
 pushEventFunc = (ev)->
   if (checkPage insArr[0]) is yes then (
+    global.usingPageIndex = memPage.indexOf getPageByAddress insArr[0]
     loadInstruction()
     global.needUpdateMemoryPages = yes
     global.needUpdateInstructionQueue = yes
@@ -171,7 +184,7 @@ pushEventFunc = (ev)->
 # Auto push 实现
 autoPushEventFunc = (ev) ->
   if global.autoplayIntervalId is -1 then (
-    global.autoplayIntervalId = setInterval pushEventFunc, 500
+    global.autoplayIntervalId = setInterval pushEventFunc, 100
     $('#btn-auto-push-next-ins').text 'Pause'
     $('#btn-auto-push-next-ins').addClass 'mui-btn-danger'
   ) else (
@@ -202,6 +215,51 @@ LFUBtnEventFunc = (ev)->
   global.algorithmUsing = LFU
   console.log 'Algorithm changed to LFU'
 
+changeSettingsBtnEventFunc = (ev)->
+  MEMORY_BLOCK_MAX = memBlockSize = parseInt $('#input-memory-block-num').val() || 4
+  PAGE_STORE_MAX = instructionPerPage = parseInt $('#input-instruction-per-page').val() || 10
+  INSTRUCTS_TOTAL = instructionTotal = parseInt $('#input-instruction-total').val() || 320
+
+  if global.autoplayIntervalId isnt -1 then (
+    clearInterval global.autoplayIntervalId
+    global.autoplayIntervalId = -1
+    $('#btn-auto-push-next-ins').text 'Auto push'
+    $('#btn-auto-push-next-ins').removeClass 'mui-btn-danger'
+  )
+
+  global =
+    insM: 0
+    jumpType: 0
+    algorithmUsing: FIFO
+    needUpdateInstructionQueue: yes
+    needUpdateMemoryPages: yes
+    popPage: null
+    usingPageIndex: -1
+    autoplayIntervalId: -1
+    insLoadTotal: 0
+    pageNotFoundTime: 0
+    currentIns: -1
+
+  algCount =
+    # 内存中某块页面距离上次访问已经过去的指令周期（LRU算法用）
+    blockLastVisited: []
+    # 各个页面总计访问次数（LFU算法用）
+    pageVisitedTime: []
+
+  $('.memory-div').empty()
+  $('.instruction-queue').empty()
+
+  init memBlockSize, instructionPerPage, instructionTotal
+  initHTML()
+  console.log 'Initialize done!'
+  return true
+
+  console.log 'Program starts!'
+  init()
+  initHTML()
+  setInterval update, 50
+  console.log 'Initialize done!'
+
 ###############################
 # 算法
 ###############################
@@ -214,6 +272,7 @@ FIFO = (pageInsert)->
   algCount.blockLastVisited.push 0
   algCount.pageVisitedTime[pageInsert] += 1
   global.needUpdateMemoryPages = yes
+  global.usingPageIndex = memPage.length - 1
 
 LRU = (pageInsert)->
   loadInstruction()
@@ -230,6 +289,8 @@ LRU = (pageInsert)->
   algCount.blockLastVisited[popIndex] = 0
   algCount.pageVisitedTime[pageInsert] += 1
   global.needUpdateMemoryPages = yes
+  global.usingPageIndex = popIndex
+
 
 LFU = (pageInsert)->
   loadInstruction()
@@ -243,6 +304,7 @@ LFU = (pageInsert)->
       algCount.blockLastVisited[popIndex] = 0
       algCount.pageVisitedTime[pageInsert] += 1
       global.needUpdateMemoryPages = yes
+      global.usingPageIndex = popIndex
       return
     )
   ) for index in [0..MEMORY_BLOCK_MAX - 1]
@@ -259,6 +321,7 @@ LFU = (pageInsert)->
   algCount.blockLastVisited[popIndex] = 0
   algCount.pageVisitedTime[pageInsert] += 1
   global.needUpdateMemoryPages = yes
+  global.usingPageIndex = popIndex
 
 ###############################
 # 主函数
@@ -267,7 +330,7 @@ main = ->
   console.log 'Program starts!'
   init()
   initHTML()
-  setInterval update, 50
+  setInterval update, 16
   console.log 'Initialize done!'
   global.algorithmUsing = FIFO
   $('#btn-push-next-ins').click pushEventFunc
@@ -275,6 +338,7 @@ main = ->
   $('#btn-change-alg-FIFO').click FIFOBtnEventFunc
   $('#btn-change-alg-LRU').click LRUBtnEventFunc
   $('#btn-change-alg-LFU').click LFUBtnEventFunc
+  $('#btn-submit-change').click changeSettingsBtnEventFunc
   return true
 
 main()
