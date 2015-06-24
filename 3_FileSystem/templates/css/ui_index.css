@@ -1,0 +1,11 @@
+.page-index {
+  height: 100%;
+}
+.page-index .main-row {
+  margin-top: 51px;
+  height: 100%;
+}
+.page-index .func-nav {
+  background: #777;
+  min-height: 100%;
+}

@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "file": "ui_index.js",
+  "sourceRoot": "",
+  "sources": [
+    "ui_index.coffee"
+  ],
+  "names": [],
+  "mappings": ";AAAA;AAAA;AAAA"
+}
