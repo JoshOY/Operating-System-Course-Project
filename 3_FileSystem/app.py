@@ -126,6 +126,24 @@ class OperationHandler(tornado.web.RequestHandler):
             self.write(json.dumps(res, encoding='utf-8'))
             self.finish()
             # TODO END
+        elif operation == 'clip':
+            # TODO: 复制/移动文件或目录
+            src_file_path = self.get_argument('srcPath')
+            dest_file_path = self.get_argument('destPath')
+            method = self.get_argument('method')
+            if method == 'duplicate':
+                code = fs.copy(src_file_path, dest_file_path)
+            elif method == 'move':
+                code = fs.move(src_file_path, dest_file_path)
+            else:
+                code = -999
+            res = {
+                'code': code
+            }
+            fs.save()
+            self.write(json.dumps(res, encoding='utf-8'))
+            self.finish()
+
 
 class FSApplication(tornado.web.Application):
     def __init__(self):

@@ -4,10 +4,13 @@
     wd: '/',
     ls: [],
     editingFile: '',
+    clipFromPath: '',
+    clipMethod: null,
     errDict: {
       '-404': '文件不存在。',
       '-505': '文件已存在。',
-      '-506': '找不到目录。'
+      '-506': '找不到目录。',
+      '-401': '复制或移动的文件不存在。'
     },
     openfile: function(path) {
       return $.ajax({
@@ -47,12 +50,16 @@
                 sizeText = data['files'][i]['size'].toString();
               }
               if (tp === 'd') {
+                sizeText = ' ';
                 namespan = '<a href="#" onclick="window.global.openfile(\'' + (path || '') + '/' + data['files'][i]['name'] + '\')">' + data['files'][i]['name'] + '</a>';
               } else {
                 namespan = '<a href="#" data-toggle="modal" data-target="#myModal" onclick="window.global.editfile(\'' + (path || '') + '/' + data['files'][i]['name'] + '\')">' + data['files'][i]['name'] + '</a>';
               }
               operation_text = '<a href="#" onclick="window.global.deleteFile(\'' + parent_path + '/' + data['files'][i]['name'] + '\')"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span></a>';
-              operation_text += '';
+              operation_text += '&nbsp;&nbsp;&nbsp;';
+              operation_text += '<a href="#" onclick="window.global.duplicateFile(\'' + parent_path + '/' + data['files'][i]['name'] + '\')"><span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span></a>';
+              operation_text += '&nbsp;&nbsp;&nbsp;';
+              operation_text += '<a href="#" onclick="window.global.moveFile(\'' + parent_path + '/' + data['files'][i]['name'] + '\')"><span class="glyphicon glyphicon-scissors" aria-hidden="true"></span></a>';
               $('#ls-view').append('<tr>' + '<td>' + typeText + '</td>' + '<td>' + namespan + '</td>' + '<td>' + sizeText + '</td>' + '<td>' + data['files'][i]['lac'] + '</td>' + '<td>' + data['files'][i]['lup'] + '</td>' + '<td>' + data['files'][i]['idx'] + '</td>' + '<td>' + operation_text + '</td>' + '</tr>');
             }
           }
@@ -107,11 +114,16 @@
                 sizeText = data['files'][i]['size'].toString();
               }
               if (tp === 'd') {
+                sizeText = ' ';
                 namespan = '<a href="#" onclick="window.global.openfile(\'' + parent_path + '/' + data['files'][i]['name'] + '\')">' + data['files'][i]['name'] + '</a>';
               } else {
                 namespan = '<a href="#" data-toggle="modal" data-target="#myModal" onclick="window.global.editfile(\'' + parent_path + '/' + data['files'][i]['name'] + '\')">' + data['files'][i]['name'] + '</a>';
               }
               operation_text = '<a href="#" onclick="window.global.deleteFile(\'' + parent_path + '/' + data['files'][i]['name'] + '\')"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span></a>';
+              operation_text += '&nbsp;&nbsp;&nbsp;';
+              operation_text += '<a href="#" onclick="window.global.duplicateFile(\'' + parent_path + '/' + data['files'][i]['name'] + '\')"><span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span></a>';
+              operation_text += '&nbsp;&nbsp;&nbsp;';
+              operation_text += '<a href="#" onclick="window.global.moveFile(\'' + parent_path + '/' + data['files'][i]['name'] + '\')"><span class="glyphicon glyphicon-scissors" aria-hidden="true"></span></a>';
               $('#ls-view').append('<tr>' + '<td>' + typeText + '</td>' + '<td>' + namespan + '</td>' + '<td>' + sizeText + '</td>' + '<td>' + data['files'][i]['lac'] + '</td>' + '<td>' + data['files'][i]['lup'] + '</td>' + '<td>' + data['files'][i]['idx'] + '</td>' + '<td>' + operation_text + '</td>' + '</tr>');
             }
           }
@@ -160,11 +172,91 @@
             alert('哎呀，删除失败：' + window.global.errDict[code]);
             return 0;
           }
+          if (filepath === window.global.clipFromPath) {
+            window.global.clipMethod = null;
+            window.global.clipFromPath = '';
+            $('#clip-parent').empty();
+            $('#clip-parent').val('/');
+            $('#clip-dest-filename').val('');
+            $('#clip-fieldset').attr('disabled', true);
+            $('#clip-button').empty();
+            $('#clip-button').append('无文件');
+          }
           window.global.openfile(window.global.wd.substring(0, window.global.wd.length - 1));
           return 0;
         }
       });
       return 0;
+    },
+    duplicateFile: function(filepath) {
+      window.global.clipFromPath = filepath;
+      window.global.clipMethod = 'duplicate';
+      $('#clip-parent').empty();
+      $('#clip-parent').append(filepath);
+      $('#clip-fieldset').removeAttr('disabled');
+      $('#clip-button').empty();
+      return $('#clip-button').append('复制到当前目录下');
+    },
+    moveFile: function(filepath) {
+      window.global.clipFromPath = filepath;
+      window.global.clipMethod = 'move';
+      $('#clip-parent').empty();
+      $('#clip-parent').append(filepath);
+      $('#clip-fieldset').removeAttr('disabled');
+      $('#clip-button').empty();
+      return $('#clip-button').append('移动到当前目录下');
+    },
+    clip: function() {
+      var newFileName, newFilePath;
+      if (window.global.clipMethod === null) {
+        return 0;
+      }
+      newFileName = $('#clip-dest-filename').val();
+      if (newFileName === '') {
+        alert('文件或文件夹名不能为空…… _(:з」∠)_');
+        return 0;
+      }
+      if (newFileName.indexOf('/') !== -1 || newFileName.indexOf('*') !== -1 || newFileName.indexOf('?') !== -1 || newFileName.indexOf('<') !== -1 || newFileName.indexOf('>') !== -1 || newFileName.indexOf(':') !== -1 || newFileName.indexOf('|') !== -1 || newFileName.indexOf('\\') !== -1 || newFileName.indexOf('"') !== -1) {
+        alert('请确定你的文件或文件夹名是合法的…… _(:з」∠)_');
+        return 0;
+      }
+      if (newFileName.lastIndexOf('.') === (newFileName.length - 1)) {
+        alert('请确定你的文件或文件夹名是合法的…… _(:з」∠)_');
+        return 0;
+      }
+      newFilePath = window.global.wd + newFileName;
+      return $.ajax({
+        url: '/operation',
+        type: 'POST',
+        data: {
+          operation: 'clip',
+          method: window.global.clipMethod,
+          srcPath: window.global.clipFromPath,
+          destPath: newFilePath
+        },
+        dataType: 'json',
+        success: function(res) {
+          var code;
+          code = res.code;
+          if (code !== 0) {
+            alert('哎呀，出错了：\n' + (window.global.errDict[code.toString()] || ("未知错误……" + code.toString())));
+            return 1;
+          } else {
+            $('#clip-dest-filename').val('');
+            if (window.global.clipMethod === 'move') {
+              window.global.clipMethod = null;
+              window.global.clipFromPath = '';
+              $('#clip-parent').empty();
+              $('#clip-parent').val('/');
+              $('#clip-fieldset').attr('disabled', true);
+              $('#clip-button').empty();
+              $('#clip-button').append('无文件');
+            }
+            window.global.openfile(window.global.wd.substring(0, window.global.wd.length - 1));
+            return 0;
+          }
+        }
+      });
     }
   };
 
@@ -203,6 +295,7 @@
             alert('哎呀，出错了：\n' + (window.global.errDict[code.toString()] || ("未知错误……" + code.toString())));
             return 1;
           } else {
+            $('#create-file-input').val('');
             window.global.openfile(window.global.wd.substring(0, window.global.wd.length - 1));
             return 0;
           }
@@ -242,6 +335,7 @@
             alert('哎呀，出错了：\n' + (window.global.errDict[code.toString()] || ("未知错误……" + code.toString())));
             return 1;
           } else {
+            $('#create-file-input').val('');
             window.global.openfile(window.global.wd.substring(0, window.global.wd.length - 1));
             return 0;
           }

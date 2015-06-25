@@ -4,10 +4,15 @@ window.global = {
 
     editingFile: ''
 
+    clipFromPath: ''
+
+    clipMethod: null # or 'duplicate' or 'move'
+
     errDict: {
       '-404': '文件不存在。'
       '-505': '文件已存在。'
       '-506': '找不到目录。'
+      '-401': '复制或移动的文件不存在。'
     }
 
     openfile: (path)->
@@ -50,6 +55,7 @@ window.global = {
             )
 
             if tp is 'd' then (
+              sizeText = ' '
               namespan = '<a href="#" onclick="window.global.openfile(\'' +
                 (path or '') + '/' + data['files'][i]['name'] +
                 '\')">' + data['files'][i]['name'] + '</a>'
@@ -60,7 +66,10 @@ window.global = {
             )
 
             operation_text = '<a href="#" onclick="window.global.deleteFile(\'' + parent_path + '/' + data['files'][i]['name'] + '\')"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span></a>'
-            operation_text += ''
+            operation_text += '&nbsp;&nbsp;&nbsp;'
+            operation_text += '<a href="#" onclick="window.global.duplicateFile(\'' + parent_path + '/' + data['files'][i]['name'] + '\')"><span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span></a>'
+            operation_text += '&nbsp;&nbsp;&nbsp;'
+            operation_text += '<a href="#" onclick="window.global.moveFile(\'' + parent_path + '/' + data['files'][i]['name'] + '\')"><span class="glyphicon glyphicon-scissors" aria-hidden="true"></span></a>'
 
             $('#ls-view').append '<tr>' +
                 '<td>' + typeText + '</td>' +
@@ -122,6 +131,7 @@ window.global = {
             )
 
             if tp is 'd' then (
+              sizeText = ' '
               namespan = '<a href="#" onclick="window.global.openfile(\'' +
                 parent_path + '/' + data['files'][i]['name'] +
                 '\')">' + data['files'][i]['name'] + '</a>'
@@ -132,6 +142,10 @@ window.global = {
             )
 
             operation_text = '<a href="#" onclick="window.global.deleteFile(\'' + parent_path + '/' + data['files'][i]['name'] + '\')"><span class="glyphicon glyphicon-remove" aria-hidden="true"></span></a>'
+            operation_text += '&nbsp;&nbsp;&nbsp;'
+            operation_text += '<a href="#" onclick="window.global.duplicateFile(\'' + parent_path + '/' + data['files'][i]['name'] + '\')"><span class="glyphicon glyphicon-duplicate" aria-hidden="true"></span></a>'
+            operation_text += '&nbsp;&nbsp;&nbsp;'
+            operation_text += '<a href="#" onclick="window.global.moveFile(\'' + parent_path + '/' + data['files'][i]['name'] + '\')"><span class="glyphicon glyphicon-scissors" aria-hidden="true"></span></a>'
 
             $('#ls-view').append '<tr>' +
                 '<td>' + typeText + '</td>' +
@@ -181,10 +195,91 @@ window.global = {
         dataType: 'json'
         success: (res)->
           if res.code isnt 0 then alert '哎呀，删除失败：' + window.global.errDict[code]; return 0
+          if filepath is window.global.clipFromPath then (
+            window.global.clipMethod = null
+            window.global.clipFromPath = ''
+            $('#clip-parent').empty()
+            $('#clip-parent').val('/')
+            $('#clip-dest-filename').val('')
+            $('#clip-fieldset').attr('disabled', true)
+            $('#clip-button').empty()
+            $('#clip-button').append('无文件')
+          )
           window.global.openfile(window.global.wd.substring(0, window.global.wd.length - 1))
           0
       })
       return 0
+
+    duplicateFile: (filepath)->
+      window.global.clipFromPath = filepath
+      window.global.clipMethod = 'duplicate'
+      $('#clip-parent').empty()
+      $('#clip-parent').append(filepath)
+      $('#clip-fieldset').removeAttr('disabled')
+      $('#clip-button').empty()
+      $('#clip-button').append('复制到当前目录下')
+
+    moveFile: (filepath)->
+      window.global.clipFromPath = filepath
+      window.global.clipMethod = 'move'
+      $('#clip-parent').empty()
+      $('#clip-parent').append(filepath)
+      $('#clip-fieldset').removeAttr('disabled')
+      $('#clip-button').empty()
+      $('#clip-button').append('移动到当前目录下')
+
+    clip: ()->
+      if window.global.clipMethod is null then return 0
+
+      newFileName = $('#clip-dest-filename').val()
+      if newFileName is '' then (
+        alert '文件或文件夹名不能为空…… _(:з」∠)_'
+        return 0
+      )
+      if newFileName.indexOf('/') isnt -1 or
+        newFileName.indexOf('*') isnt -1 or
+        newFileName.indexOf('?') isnt -1 or
+        newFileName.indexOf('<') isnt -1 or
+        newFileName.indexOf('>') isnt -1 or
+        newFileName.indexOf(':') isnt -1 or
+        newFileName.indexOf('|') isnt -1 or
+        newFileName.indexOf('\\') isnt -1 or
+        newFileName.indexOf('"') isnt -1 then (
+          alert '请确定你的文件或文件夹名是合法的…… _(:з」∠)_'
+          return 0
+      )
+      if newFileName.lastIndexOf('.') is (newFileName.length - 1) then alert '请确定你的文件或文件夹名是合法的…… _(:з」∠)_'; return 0
+      newFilePath = window.global.wd + newFileName
+      $.ajax({
+        url: '/operation'
+        type: 'POST'
+        data: {
+          operation: 'clip'
+          method: window.global.clipMethod
+          srcPath: window.global.clipFromPath
+          destPath: newFilePath
+        }
+        dataType: 'json'
+        success: (res)->
+          code = res.code
+          if code isnt 0 then (
+            alert '哎呀，出错了：\n' + (window.global.errDict[code.toString()] or ("未知错误……" + code.toString()) )
+            return 1
+          ) else (
+            $('#clip-dest-filename').val('')
+            if window.global.clipMethod is 'move' then (
+              window.global.clipMethod = null
+              window.global.clipFromPath = ''
+              $('#clip-parent').empty()
+              $('#clip-parent').val('/')
+              $('#clip-fieldset').attr('disabled', true)
+              $('#clip-button').empty()
+              $('#clip-button').append('无文件')
+            )
+            window.global.openfile(window.global.wd.substring(0, window.global.wd.length - 1))
+            return 0
+          )
+      })
 }
 
 $(document).ready ()->
@@ -226,6 +321,7 @@ $(document).ready ()->
           alert '哎呀，出错了：\n' + (window.global.errDict[code.toString()] or ("未知错误……" + code.toString()) )
           return 1
         ) else (
+          $('#create-file-input').val('')
           window.global.openfile(window.global.wd.substring(0, window.global.wd.length - 1))
           return 0
         )
@@ -265,6 +361,7 @@ $(document).ready ()->
           alert '哎呀，出错了：\n' + (window.global.errDict[code.toString()] or ("未知错误……" + code.toString()) )
           return 1
         ) else (
+          $('#create-file-input').val('')
           window.global.openfile(window.global.wd.substring(0, window.global.wd.length - 1))
           return 0
         )

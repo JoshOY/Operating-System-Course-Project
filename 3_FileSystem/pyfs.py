@@ -359,34 +359,26 @@ class FileSystem:
             return Const.ERROR_DEST_FILE_EXIST
         # If OK:
         src_inode = self.inode_list[src_idx]
+        # Case directory:
         self.create(dest, src_inode.file_type)
         dest_inode = self.find_inode(dest)
-        dest_inode.write(src_inode.read())
+        if src_inode.file_type == 'd':
+            copy_ls = src_inode.get_include_inodes_idx()
+            for child_idx in copy_ls:
+                child_file = self.inode_list[child_idx]
+                self.copy(src + '/' + child_file.file_name, dest + '/' + child_file.file_name)
+        else:
+            dest_inode.write(src_inode.read())
+            dest_inode.update_size()
         return Const.OPERATION_DONE
 
     def move(self, src, dest):
-        src_idx = self.find_inode_idx(src, None)
-        dest_exist = self.find_inode_idx(dest, None)
-        if src_idx < 0:
-            return Const.ERROR_SRC_FILE_NOT_FOUND
-        if dest_exist >= 0:
-            return Const.ERROR_DEST_FILE_EXIST
-        inode = FileSystem.inode_list[src_idx]
-        new_name = dest.split('/')[-1]
-        try:
-            old_parent_idx = inode.parent_idx
-            inode.parent_idx = self.find_inode('/'.join(dest.split('/')[:-1]))
-        except Exception:
-            inode.parent_idx = old_parent_idx
-            return Const.ERROR_DIR_NOT_FOUNT
-        try:
-            old_parent = self.inode_list[old_parent_idx]
-            old_parent.dir_remove_child_idx(inode.idx)
-            parent = self.inode_list[inode.parent_idx]
-            parent.dir_append_child_idx(inode.idx)
-            inode.file_name = new_name
-        except Exception:
-            return Const.ERROR_FILE_IS_NOT_DIR
+        code = self.copy(src, dest)
+        if code == 0:
+            self.delete(src, None)
+            return Const.OPERATION_DONE
+        else:
+            return code
 
     def find_inode_idx(self, path, parent_idx=None):
         if path is u'':
@@ -444,4 +436,5 @@ if __name__ == '__main__':
     # fs.create(u'/var/www/index.html', u'-')
     # f = fs.find_inode(u'/var')
     # f.delete()
+    fs.copy(u'/var/www', u'/var/www2')
     fs.save()
